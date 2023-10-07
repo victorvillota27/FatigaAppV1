@@ -28,6 +28,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Timer;
@@ -48,7 +49,22 @@ public class MainActivity extends CameraActivity {
 
     //etiqueta para el contador de parpadeos
     private TextView blinkCountTextView;
+    private boolean eyesDetected = false;
+    private boolean previousEyesDetected = false;
+    private int blinkCount = 0;
 
+    long firstDetectionTime = 0;
+
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////// Variables para EAR /////////////////////////
+  /*  private int blinkCount = 0;  // Contador de parpadeos
+    private static final double BLINK_EAR_THRESHOLD = 0.610327780786685;  // Umbral para considerar un parpadeo
+    private static final long blinkDurationMillis = 1000;  // Duración (en milisegundos) para contar como un parpadeo
+    private boolean isBlinkInProgress = false;
+*/
+///////////////////////////////////////////////////////////////////////
 
 
     @Override
@@ -59,6 +75,8 @@ public class MainActivity extends CameraActivity {
         setContentView(R.layout.activity_main);
         blinkCountTextView = findViewById(R.id.blinkCountTextView);
         cameraBridgeViewBase = findViewById(R.id.cameraView);
+        //FaceMesh faceMesh = new FaceMesh(context, FaceMesh.FaceMeshStaticValue.MODEL_NAME, FaceMesh.FaceMeshStaticValue.FLIP_FRAMES);
+
 
         getPermission(); //permisos de la camara
 
@@ -161,11 +179,11 @@ public class MainActivity extends CameraActivity {
                         tl = face.tl();
                         br = face.br();
 
-                        String tlText = "sup (" + tl.x + ", " + tl.y + ")";
-                        String brText = "inf (" + br.x + ", " + br.y + ")";
+                        //String tlText = "sup (" + tl.x + ", " + tl.y + ")";
+                        //String brText = "inf (" + br.x + ", " + br.y + ")";
 
-                        Imgproc.putText(rotatedFrame, tlText, tl, Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, new Scalar(0, 0, 255), 3);
-                        Imgproc.putText(rotatedFrame, brText, br, Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, new Scalar(0, 0, 255), 3);
+                        //Imgproc.putText(rotatedFrame, tlText, tl, Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, new Scalar(0, 0, 255), 3);
+                        //Imgproc.putText(rotatedFrame, brText, br, Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, new Scalar(0, 0, 255), 3);
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -181,8 +199,8 @@ public class MainActivity extends CameraActivity {
                         int brY = face.y + face.height; // y de la esquina inferior derecha
 
                         // nuevos puntos para el rectangulo superior del rostro
-                        int nuevobrY = brY - 150;
-                        int nuevotlY = tlY+60;
+                        int nuevobrY = brY - 170;
+                        int nuevotlY = tlY+70;
 
                         //se calcula la region de interes para los ojos
 
@@ -195,23 +213,108 @@ public class MainActivity extends CameraActivity {
 
                         MatOfRect eyes = new MatOfRect();
                         if (eyeCascade != null) {
-                            eyeCascade.detectMultiScale(faceRegion, eyes, 1.1, 6, 2,
+                            eyeCascade.detectMultiScale(faceRegion, eyes, 1.08, 15, 2,
                                     new Size(50, 50), new Size(70, 70));
                         }
 
                         // se encuentra los ojos y se dibujas circulos sobre ellos
                         Rect[] eyesArray = eyes.toArray();
                         for (Rect eye : eyesArray) {
+
+
                             Point eyeTl = new Point(eye.tl().x + tlX, eye.tl().y + nuevotlY);
                             Point eyeBr = new Point(eye.br().x + tlX, eye.br().y + nuevotlY);
 
-                            //Imgproc.rectangle(rotatedFrame, eyeTl, eyeBr, new Scalar(0, 255, 0, 255), 3);
 
-                            //dibujar circulo
+////////////////////////// Dibujar circulo en los ojos ///////////////////////////////////////////
+                          /*
+                            //Point eyeCenter = new Point((eyeTl.x + eyeBr.x) / 2, (eyeTl.y + eyeBr.y) / 2);
+                            //int radius = (int) Math.max((eyeBr.x - eyeTl.x) / 2, (eyeBr.y - eyeTl.y) / 2);
+                            //Imgproc.circle(rotatedFrame, eyeCenter, radius, new Scalar(0, 255, 0, 255), 3);
+                            */
+
+//////////////////////// Dibujar elipse en lugar de Circulo /////////////////////////////////
+
+                            double aspectRatio = 0.7; // Puedes ajustar este valor según tus necesidades
+
+                            // Calcular los tamaños de los ejes en función del ancho y la relación de aspecto
+                            double semiMajorAxis = eye.width / 2;
+                            double semiMinorAxis = semiMajorAxis * aspectRatio;
+
+
                             Point eyeCenter = new Point((eyeTl.x + eyeBr.x) / 2, (eyeTl.y + eyeBr.y) / 2);
-                            int radius = (int) Math.max((eyeBr.x - eyeTl.x) / 2, (eyeBr.y - eyeTl.y) / 2);
-                            Imgproc.circle(rotatedFrame, eyeCenter, radius, new Scalar(0, 255, 0, 255), 3);
+                            Size axes = new Size((eyeBr.x - eyeTl.x) / 2, (eyeBr.y - eyeTl.y) / 2); // Semiejes horizontal y vertical de la elipse
+
+                            // Dibujar la elipse
+                            Imgproc.ellipse(rotatedFrame, eyeCenter, new Size(semiMajorAxis, semiMinorAxis), 0, 0, 360,new Scalar(0, 255, 0, 255), 3);
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////// CALCULAR REALACION DE ASPECTO DEL OJO (EAR)
+                           /*
+                            int numAdditionalPoints = 4;
+                            List<Point> additionalPoints = new ArrayList<>();
+
+                            for (int i = 0; i < numAdditionalPoints; i++) {
+                                angle = 2 * Math.PI * i / numAdditionalPoints;
+                                double x = eyeCenter.x + semiMajorAxis * Math.cos(angle);
+                                double y = eyeCenter.y + semiMinorAxis * Math.sin(angle);
+                                additionalPoints.add(new Point(x, y));
+                            }
+
+                            Point p1 = additionalPoints.get(0); // Primer punto
+                            Point p2 = additionalPoints.get(1); // Segundo punto
+                            Point p3 = additionalPoints.get(2); // Tercer punto
+                            Point p4 = additionalPoints.get(3); // Cuarto punto
+
+                            Scalar pointColor = new Scalar(255, 0, 0); // Color azul
+                            int pointRadius = 2; // Radio del punto
+                            Imgproc.circle(rotatedFrame, p1, pointRadius, pointColor, 2); // Dibujar p1
+                            Imgproc.circle(rotatedFrame, p2, pointRadius, pointColor, 2); // Dibujar p2
+                            Imgproc.circle(rotatedFrame, p3, pointRadius, pointColor, 2); // Dibujar p3
+                            Imgproc.circle(rotatedFrame, p4, pointRadius, pointColor, 2); // Dibujar p4
+
+                            // Calcular EAR
+                            double distance1 = Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+                            double distance2 = Math.sqrt(Math.pow(p3.x - p4.x, 2) + Math.pow(p3.y - p4.y, 2));
+                            double distance3 = Math.sqrt(Math.pow(p1.x - p3.x, 2) + Math.pow(p1.y - p3.y, 2));
+
+                            double ear = (distance1 + distance2) / (2.0 * distance3);
+
+
+                            Log.d("EAR", "EAR: " + ear);
+
+                            if (ear < BLINK_EAR_THRESHOLD && !isBlinkInProgress) {
+                                isBlinkInProgress = true;
+                                blinkCount++;
+                                runOnUiThread(() -> blinkCountTextView.setText("Parpadeos: " + blinkCount));
+
+                            }else if(ear >= BLINK_EAR_THRESHOLD){
+                                isBlinkInProgress = false;
+                            }
+                            */
                         }
+
+
+///////////////////////////////////////////////////////////////
+                        // contador de parpadeos
+
+                        if (!eyes.empty()) {
+                            eyesDetected = true;
+                            runOnUiThread(() ->blinkCountTextView.setText("Parpadeos" + blinkCount));
+
+                        }else{
+                            eyesDetected = false;
+                            runOnUiThread(() ->blinkCountTextView.setText("Parpadeos" + blinkCount));
+                        }
+                        if (eyesDetected && !previousEyesDetected) {
+                            // Hubo una transición de false a true, por lo que incrementamos el contador
+                            blinkCount++;
+                            runOnUiThread(() ->blinkCountTextView.setText("Parpadeos" + blinkCount));
+                        }
+                        previousEyesDetected = eyesDetected;
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+
                     }
 
                return rotatedFrame;
@@ -308,6 +411,9 @@ public class MainActivity extends CameraActivity {
     protected List<? extends CameraBridgeViewBase> getCameraViewList() {
         return Collections.singletonList(cameraBridgeViewBase);
     }
+
+
+
 
 
 }

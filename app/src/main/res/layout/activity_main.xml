@@ -19,9 +19,26 @@
         android:id="@+id/blinkCountTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Número de parpadeos: 0"
+        android:text="Parpadeos: 0"
         android:textSize="18sp"
+
         />
+    <TextView
+        android:id="@+id/blinkTimeTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Tiempo parpadeo: 0"
+        android:textSize="18sp"
+        android:layout_below="@+id/blinkCountTextView" />
+    <TextView
+        android:id="@+id/yawnCountTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Bostezos: 0"
+        android:textSize="18sp"
+        android:layout_below="@+id/blinkTimeTextView" />
+
+
 
 
 </RelativeLayout>
