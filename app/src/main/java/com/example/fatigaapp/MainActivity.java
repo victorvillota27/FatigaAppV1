@@ -44,23 +44,32 @@ public class MainActivity extends CameraActivity {
     CascadeClassifier yawnCascade;
     Mat grayMat; //matriz para guardar el frame de la camara ya modificado en escala de grises
 
-    //puntos para la matriz del rostro
-    Point tl=null;
-    Point br=null;
 
     //etiqueta para el contador de parpadeos
     private TextView blinkCountTextView;
     private boolean eyesDetected = false;
     private boolean previousEyesDetected = false;
-    private int blinkCount = 0;
+    private int blinkCount = -1;
+    long elapsedTimeSeconds = 0;
 
     //etiqueta bostezos
     private TextView yawnCountTextView;
     private boolean yawnDetected = false;
     private boolean previousYawnDetected = false;
     private int yawnCount = 0;
+    ////////////////
+
+    private TextView blinkTimeTextView;
+    private boolean timerActive = false;
+    private boolean timerActive2 = false;
+    private long startTime;
+    private Timer timer;
 
 
+    private long Time1 = 0;
+    private long Time2 = 0;
+
+    private long TimeInicial;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////// Variables para EAR /////////////////////////
@@ -81,10 +90,12 @@ public class MainActivity extends CameraActivity {
         blinkCountTextView = findViewById(R.id.blinkCountTextView);
         yawnCountTextView = findViewById(R.id.yawnCountTextView);
         cameraBridgeViewBase = findViewById(R.id.cameraView);
+        blinkTimeTextView = findViewById(R.id.blinkTimeTextView);
         //FaceMesh faceMesh = new FaceMesh(context, FaceMesh.FaceMeshStaticValue.MODEL_NAME, FaceMesh.FaceMeshStaticValue.FLIP_FRAMES);
 
 
         getPermission(); //permisos de la camara
+
 
         cameraBridgeViewBase.setCameraIndex(1); // cambiar a camara frontal
         cameraBridgeViewBase.setCvCameraViewListener(new CameraBridgeViewBase.CvCameraViewListener2() {
@@ -103,6 +114,7 @@ public class MainActivity extends CameraActivity {
 
             @Override
             public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
+
 
 ////////////////////// UNO ////////////////////////////
 
@@ -200,6 +212,9 @@ public class MainActivity extends CameraActivity {
                         for (Rect eye : eyesArray) {
 
 
+
+
+
                             Point eyeTl = new Point(eye.tl().x + faceX1, eye.tl().y + eyesY1);
                             Point eyeBr = new Point(eye.br().x + faceX1, eye.br().y + eyesY1);
 
@@ -263,31 +278,49 @@ public class MainActivity extends CameraActivity {
                                 isBlinkInProgress = false;
                             }
                             */
+                            TimeInicial=System.currentTimeMillis();
+
                         }
 
 
 ///////////////////////////////////////////////////////////////
                         // contador de parpadeos
 
-                        if (!eyes.empty()) {
-                            eyesDetected = true;
-                            runOnUiThread(() ->blinkCountTextView.setText("Parpadeos" + blinkCount));
+    if (!eyes.empty()) {
+        eyesDetected = true;
+        //runOnUiThread(() ->blinkCountTextView.setText("Parpadeos" + blinkCount));
+        Time2 = System.currentTimeMillis();
 
-                        }else{
-                            eyesDetected = false;
-                            runOnUiThread(() ->blinkCountTextView.setText("Parpadeos" + blinkCount));
-                        }
-                        if (eyesDetected && !previousEyesDetected) {
-                            // Hubo una transición de false a true, por lo que incrementamos el contador
-                            blinkCount++;
-                            runOnUiThread(() ->blinkCountTextView.setText("Parpadeos" + blinkCount));
-                        }
-                        previousEyesDetected = eyesDetected;
+
+
+    }else{
+        if(Time1==0){
+            Time1 = System.currentTimeMillis();
+        }
+
+
+
+        eyesDetected = false;
+        //runOnUiThread(() ->blinkCountTextView.setText("Parpadeos" + blinkCount));
+    }
+    if (eyesDetected && !previousEyesDetected && TimeInicial>5000) {
+        // Hubo una transición de false a true, por lo que incrementamos el contador
+
+        elapsedTimeSeconds = (Time2 - Time1);
+        blinkCount++;
+        runOnUiThread(() -> blinkCountTextView.setText("Parpadeos: " + blinkCount));
+        runOnUiThread(() -> blinkTimeTextView.setText("Tiempo entre parpadeos: " + elapsedTimeSeconds + " ms"));
+        Time1 = 0;
+        Time2 = 0;
+    }
+    previousEyesDetected = eyesDetected;
+
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
                         MatOfRect mouth = new MatOfRect();
                         if (yawnCascade != null) {
-                            yawnCascade.detectMultiScale(mouthRegion, mouth, 1.2, 9, 2,
+                            yawnCascade.detectMultiScale(mouthRegion, mouth, 1.3, 10, 2,
                                     new Size(100, 100));
                         }
 
@@ -298,23 +331,44 @@ public class MainActivity extends CameraActivity {
                             Point yawnBr = new Point(yawn.br().x + faceX1, yawn.br().y + mouthY1);
 
                             Imgproc.rectangle(rotatedFrame, yawnTl, yawnBr, new Scalar(0, 255, 0, 255), 3);
-                        }
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+                            //tiempo del bostezo
+                            if (!timerActive) {
+
+                                timerActive = true;
+                                startTime = System.currentTimeMillis();
+                            }
 
 ///////////////////////////////////////////////////////////////////////////////////////
                         // contador de bostezos
 
                         if (!mouth.empty()) {
                             yawnDetected = true;
-                            runOnUiThread(() ->yawnCountTextView.setText("Bostezos:" + yawnCount));
+                            //runOnUiThread(() ->yawnCountTextView.setText("Bostezos:" + yawnCount));
 
                         }else{
                             yawnDetected = false;
-                            runOnUiThread(() ->yawnCountTextView.setText("Bostezos:" + yawnCount));
+                            //runOnUiThread(() ->yawnCountTextView.setText("Bostezos:" + yawnCount));
                         }
                         if (yawnDetected && !previousYawnDetected) {
                             // Hubo una transición de false a true, por lo que incrementamos el contador
                             yawnCount++;
+                            // Iniciar el temporizador durante 6 segundos.
+                            timer = new Timer();
+                            timer.schedule(new TimerTask() {
+                                @Override
+                                public void run() {
+                                    // Cuando el temporizador finalice, desactiva el temporizador y permite detectar más bostezos.
+                                    timerActive = false;
+                                    yawnDetected = false;
+                                }
+                            }, 7000); // 8 segundos en milisegundos
+                        }
+
                             runOnUiThread(() ->yawnCountTextView.setText("Bostezos:" + yawnCount));
+
                         }
                         previousYawnDetected = yawnDetected;
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
