@@ -41,6 +41,7 @@ public class MainActivity extends CameraActivity {
     // varianles para clasificadores
     CascadeClassifier faceCascade;
     CascadeClassifier eyeCascade;
+    CascadeClassifier yawnCascade;
     Mat grayMat; //matriz para guardar el frame de la camara ya modificado en escala de grises
 
     //puntos para la matriz del rostro
@@ -53,7 +54,11 @@ public class MainActivity extends CameraActivity {
     private boolean previousEyesDetected = false;
     private int blinkCount = 0;
 
-    long firstDetectionTime = 0;
+    //etiqueta bostezos
+    private TextView yawnCountTextView;
+    private boolean yawnDetected = false;
+    private boolean previousYawnDetected = false;
+    private int yawnCount = 0;
 
 
 
@@ -74,6 +79,7 @@ public class MainActivity extends CameraActivity {
         //
         setContentView(R.layout.activity_main);
         blinkCountTextView = findViewById(R.id.blinkCountTextView);
+        yawnCountTextView = findViewById(R.id.yawnCountTextView);
         cameraBridgeViewBase = findViewById(R.id.cameraView);
         //FaceMesh faceMesh = new FaceMesh(context, FaceMesh.FaceMeshStaticValue.MODEL_NAME, FaceMesh.FaceMeshStaticValue.FLIP_FRAMES);
 
@@ -126,30 +132,7 @@ public class MainActivity extends CameraActivity {
                 Imgproc.warpAffine(rgbaFrame, rotatedFrame, rotationMatrix, rgbaFrame.size());
                 Core.flip(rotatedFrame, rotatedFrame, 1);
 
- ////////////////////////////////////////////////////
 
-/*
-                Point[] entradaPuntos = new Point[4];
-                entradaPuntos[0] = new Point(150, 20); // Esquina superior izquierda
-                entradaPuntos[1] = new Point(width - 150, 20); /// Esquina superior derecha
-                entradaPuntos[2] = new Point(100, height - 1); // Esquina inferior izquierda
-                entradaPuntos[3] = new Point(width - 100, height - 1); /// Esquina inferior derecha
-
-
-
-                Point[] salidaPuntos = new Point[4];
-                salidaPuntos[0] = new Point(0, 0); // Nueva posición de la esquina superior izquierda
-                salidaPuntos[1] = new Point(width - 1, 0); // Nueva posición de la esquina superior derecha
-                salidaPuntos[2] = new Point(0, height - 1); // Nueva posición de la esquina inferior izquierda
-                salidaPuntos[3] = new Point(width - 1, height - 1); // Nueva posición de la esquina inferior derecha
-
-                Mat perspectiveMatrix = Imgproc.getPerspectiveTransform(new MatOfPoint2f(entradaPuntos), new MatOfPoint2f(salidaPuntos));
-
-                Mat correctedFrame = new Mat();
-                Imgproc.warpPerspective(rotatedFrame, correctedFrame, perspectiveMatrix, rotatedFrame.size());
-
-*/
-////////////////////////////////////////
 
 //////////////////////  DOS ////////////////////////////
 
@@ -158,7 +141,6 @@ public class MainActivity extends CameraActivity {
 
                 Imgproc.cvtColor(rotatedFrame, grayMat, Imgproc.COLOR_RGBA2GRAY);
                 Imgproc.adaptiveThreshold(grayMat, binaryImage, 255, Imgproc.ADAPTIVE_THRESH_MEAN_C, Imgproc.THRESH_BINARY, 11, 2);
-
                 //Imgproc.equalizeHist(grayMat, grayMat);
 
 //////////////////// TRES //////////////////////////////
@@ -176,36 +158,32 @@ public class MainActivity extends CameraActivity {
                     for (Rect face : facesArray) {
                         Imgproc.rectangle(rotatedFrame, face.tl(), face.br(), new Scalar(255, 0, 0, 255), 3);
 
-                        tl = face.tl();
-                        br = face.br();
-
-                        //String tlText = "sup (" + tl.x + ", " + tl.y + ")";
-                        //String brText = "inf (" + br.x + ", " + br.y + ")";
-
-                        //Imgproc.putText(rotatedFrame, tlText, tl, Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, new Scalar(0, 0, 255), 3);
-                        //Imgproc.putText(rotatedFrame, brText, br, Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, new Scalar(0, 0, 255), 3);
-
 ////////////////////////////////////////////////////////////////////////////////////////////
-
 //////////////////////// CUATRO ////////////////////////////////////////////////////////
 
 // se extraen los puntos del rectangulo donde esta el rostro calculado en el paso anterior
 // luego se crean nuevos puntos para la parte superior del rostro
 
 
-                        int tlX = face.x; /// x de la esquina superior izquierda
-                        int tlY = face.y; /// y de la esquina superior izquierda
-                        int brX = face.x + face.width; // x de la esquina inferior derecha
-                        int brY = face.y + face.height; // y de la esquina inferior derecha
+                        int faceX1 = face.x; /// x de la esquina superior izquierda
+                        int faceY1 = face.y; /// y de la esquina superior izquierda
+                        int faceX2 = face.x + face.width; // x de la esquina inferior derecha
+                        int faceY2 = face.y + face.height; // y de la esquina inferior derecha
 
                         // nuevos puntos para el rectangulo superior del rostro
-                        int nuevobrY = brY - 170;
-                        int nuevotlY = tlY+70;
-
+                        int eyesY2 = faceY2 - 170;
+                        int eyesY1 = faceY1+70;
                         //se calcula la region de interes para los ojos
+                        Mat eyeRegion = grayMat.submat(new Rect(faceX1, eyesY1, faceX2 - faceX1, eyesY2 - faceY1));
+                        Imgproc.rectangle(rotatedFrame, new Point(faceX1, eyesY1), new Point(faceX2, eyesY2), new Scalar(0, 255, 255, 255), 3);
 
-                        Mat faceRegion = grayMat.submat(new Rect(tlX, nuevotlY, brX - tlX, nuevobrY - tlY));
-                        Imgproc.rectangle(rotatedFrame, new Point(tlX, nuevotlY), new Point(brX, nuevobrY), new Scalar(0, 255, 255, 255), 3);
+                        // nuevos puntos para el rectangulo inferior
+                        int mouthY2 = faceY2 +40;
+                        int mouthY1 = faceY1+200;
+
+                        //se calcula la region de interes para la boca
+                        Mat mouthRegion = grayMat.submat(new Rect(faceX1, mouthY1, faceX2 - faceX1, mouthY2 - mouthY1));
+                        Imgproc.rectangle(rotatedFrame, new Point(faceX1, mouthY1), new Point(faceX2, mouthY2), new Scalar(255, 100, 255, 0), 3);
 
 /////////////////////// CINCO ////////////////////////////////////////////
 /////se aplica el clasificador de ojos sobre la region anterior
@@ -213,7 +191,7 @@ public class MainActivity extends CameraActivity {
 
                         MatOfRect eyes = new MatOfRect();
                         if (eyeCascade != null) {
-                            eyeCascade.detectMultiScale(faceRegion, eyes, 1.08, 15, 2,
+                            eyeCascade.detectMultiScale(eyeRegion, eyes, 1.08, 15, 2,
                                     new Size(50, 50), new Size(70, 70));
                         }
 
@@ -222,16 +200,8 @@ public class MainActivity extends CameraActivity {
                         for (Rect eye : eyesArray) {
 
 
-                            Point eyeTl = new Point(eye.tl().x + tlX, eye.tl().y + nuevotlY);
-                            Point eyeBr = new Point(eye.br().x + tlX, eye.br().y + nuevotlY);
-
-
-////////////////////////// Dibujar circulo en los ojos ///////////////////////////////////////////
-                          /*
-                            //Point eyeCenter = new Point((eyeTl.x + eyeBr.x) / 2, (eyeTl.y + eyeBr.y) / 2);
-                            //int radius = (int) Math.max((eyeBr.x - eyeTl.x) / 2, (eyeBr.y - eyeTl.y) / 2);
-                            //Imgproc.circle(rotatedFrame, eyeCenter, radius, new Scalar(0, 255, 0, 255), 3);
-                            */
+                            Point eyeTl = new Point(eye.tl().x + faceX1, eye.tl().y + eyesY1);
+                            Point eyeBr = new Point(eye.br().x + faceX1, eye.br().y + eyesY1);
 
 //////////////////////// Dibujar elipse en lugar de Circulo /////////////////////////////////
 
@@ -315,6 +285,39 @@ public class MainActivity extends CameraActivity {
                         previousEyesDetected = eyesDetected;
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
+                        MatOfRect mouth = new MatOfRect();
+                        if (yawnCascade != null) {
+                            yawnCascade.detectMultiScale(mouthRegion, mouth, 1.2, 9, 2,
+                                    new Size(100, 100));
+                        }
+
+                        // se encuentra los ojos y se dibujas circulos sobre ellos
+                        Rect[] mouthArray = mouth.toArray();
+                        for (Rect yawn : mouthArray) {
+                            Point yawnTl = new Point(yawn.tl().x + faceX1, yawn.tl().y + mouthY1);
+                            Point yawnBr = new Point(yawn.br().x + faceX1, yawn.br().y + mouthY1);
+
+                            Imgproc.rectangle(rotatedFrame, yawnTl, yawnBr, new Scalar(0, 255, 0, 255), 3);
+                        }
+
+///////////////////////////////////////////////////////////////////////////////////////
+                        // contador de bostezos
+
+                        if (!mouth.empty()) {
+                            yawnDetected = true;
+                            runOnUiThread(() ->yawnCountTextView.setText("Bostezos:" + yawnCount));
+
+                        }else{
+                            yawnDetected = false;
+                            runOnUiThread(() ->yawnCountTextView.setText("Bostezos:" + yawnCount));
+                        }
+                        if (yawnDetected && !previousYawnDetected) {
+                            // Hubo una transición de false a true, por lo que incrementamos el contador
+                            yawnCount++;
+                            runOnUiThread(() ->yawnCountTextView.setText("Bostezos:" + yawnCount));
+                        }
+                        previousYawnDetected = yawnDetected;
+///////////////////////////////////////////////////////////////////////////////////////////////////////
                     }
 
                return rotatedFrame;
@@ -331,6 +334,7 @@ public class MainActivity extends CameraActivity {
         //carga de los clasificadores
         loadCascadeFaceClassifier();
         loadCascadeEyeClassifier();
+        loadCascadeYawnClassifier();
     }
 
     void getPermission() {
@@ -389,6 +393,35 @@ public class MainActivity extends CameraActivity {
             eyeCascade = new CascadeClassifier(cascadeFile.getAbsolutePath());
 
             if (eyeCascade.empty()) {
+                Log.e("CASCADE", "Failed to load cascade classifier");
+            } else {
+                Log.d("CASCADE", "Loaded cascade classifier");
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            Log.e("CASCADE", "Error copying cascade classifier");
+        }
+    }
+
+    private void loadCascadeYawnClassifier() {
+        try {
+            InputStream is = getResources().openRawResource(R.raw.haarcascade_yawn);
+            File cascadeDir = getDir("cascade", MODE_PRIVATE);
+            File cascadeFile = new File(cascadeDir, "haarcascade_yawn.xml");
+            FileOutputStream os = new FileOutputStream(cascadeFile);
+
+            byte[] buffer = new byte[4096];
+            int bytesRead;
+            while ((bytesRead = is.read(buffer)) != -1) {
+                os.write(buffer, 0, bytesRead);
+            }
+
+            is.close();
+            os.close();
+
+            yawnCascade = new CascadeClassifier(cascadeFile.getAbsolutePath());
+
+            if (yawnCascade.empty()) {
                 Log.e("CASCADE", "Failed to load cascade classifier");
             } else {
                 Log.d("CASCADE", "Loaded cascade classifier");
