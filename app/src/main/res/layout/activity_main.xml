@@ -27,7 +27,7 @@
         android:id="@+id/blinkTimeTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Tiempo parpadeo: 0"
+        android:text="Tiempo ultimo parpadeo: 0"
         android:textSize="18sp"
         android:layout_below="@+id/blinkCountTextView" />
     <TextView
@@ -37,6 +37,13 @@
         android:text="Bostezos: 0"
         android:textSize="18sp"
         android:layout_below="@+id/blinkTimeTextView" />
+    <TextView
+        android:id="@+id/timeTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Tiempo: "
+        android:textSize="18sp"
+        android:layout_below="@+id/yawnCountTextView" />
 
 
 
