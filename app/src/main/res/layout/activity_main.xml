@@ -19,33 +19,80 @@
         android:id="@+id/blinkCountTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:paddingTop="40dp"
         android:text="Parpadeos: 0"
         android:textSize="18sp"
+        android:textColor="#FFFFFF"
+        android:layout_below="@+id/stateTextView"
 
         />
     <TextView
         android:id="@+id/blinkTimeTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Tiempo ultimo parpadeo: 0"
+        android:text="Tiempo Parpadeo: 0"
         android:textSize="18sp"
+        android:paddingTop="10dp"
+        android:textColor="#FFFFFF"
         android:layout_below="@+id/blinkCountTextView" />
     <TextView
         android:id="@+id/yawnCountTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Bostezos: 0"
+        android:paddingTop="10dp"
         android:textSize="18sp"
+        android:textColor="#FFFFFF"
         android:layout_below="@+id/blinkTimeTextView" />
     <TextView
         android:id="@+id/timeTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Tiempo: "
+        android:paddingTop="5dp"
         android:textSize="18sp"
-        android:layout_below="@+id/yawnCountTextView" />
+        android:textColor="#FFFFFF"
+        android:layout_below="@+id/stateTextView"
+        android:paddingLeft="280dp"
+        />
+
+    <TextView
+        android:id="@+id/TextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/timeTextView"
+        android:paddingTop="5dp"
+        android:paddingLeft="280dp"
+        android:text="Lux:"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        />
+
+    <TextView
+        android:id="@+id/sensorTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingTop="5dp"
+        android:text="0"
+        android:textSize="18sp"
+        android:textColor="#FFFFFF"
+        android:layout_below="@+id/timeTextView"
+        android:layout_toRightOf="@+id/TextView"
+        android:layout_alignParentEnd="true"
+        />
 
 
 
+
+    <TextView
+        android:id="@+id/stateTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="10dp"
+        android:text="ESTADO:"
+        android:background="#00FF00"
+        android:textColor="#000000"
+        android:textSize="20sp"
+        android:gravity="center"/>
 
 </RelativeLayout>

@@ -6,22 +6,23 @@ import android.widget.TextView;
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfKeyPoint;
 import org.opencv.core.MatOfRect;
 import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
+import org.opencv.features2d.ORB;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.objdetect.CascadeClassifier;
 
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.function.Function;
+import com.example.fatigaapp.util.Time;
+
 
 public abstract class Detection implements CameraBridgeViewBase.CvCameraViewListener2 {
 
-
-    private Mat grayMat;
+    private static final int DELAY_TIME_TO_START = 5; // 5 SEGUNDOS PARA DETECCION
+    private Mat grayMat; // MATRIZ ESCALA DE GRISES FRAME CAMARA
 
     //clasificadores:
     public CascadeClassifier faceCascade = null;
@@ -35,132 +36,92 @@ public abstract class Detection implements CameraBridgeViewBase.CvCameraViewList
     private int blinkCount = -1;
     private TextView blinkCountTextView;
 
+
     //tiempo de parpadeo:
-    private long blinkTime1 = 0;
-    private long blinkTime2 = 0;
-    private long elapsedTimeSeconds = 0;
+    Time blinkDuration = new Time();
     private TextView blinkTimeTextView;
 
 
     //contar bostezos:
-    private int yawnCount = 0;
-    private boolean previousYawnDetected = false;
+    private long numYawFra = 0;
+    private int yawCount =0;
     private boolean yawnDetected = false;
     private TextView yawnCountTextView;
-    private long yawnTime1=0;
-    private long yawnTime2=0;
-    private  long elapsedTimeSeconds2 =0;
-
-    private int nYawnDetected =0;
 
 
+    // tiempo del bostezo
+    Time yawDuration = new Time();
 
 
-    long time1;
-    long time2 = 0;
-    long time3 = 0;
+    // tiempos
+    Time timeApp = new Time();
+    Time timeDet = new Time();
+    long timApp = 0;
+    long timDetAct = 0;
     TextView timeTextView;
 
-    public Detection( TextView yawnCountTextView, TextView blinkCountTextView, TextView blinkTimeTextView, long time1,
-                      TextView timeTextView) {
+    // variables del sensor:
+    private TextView sensorTextView;
+
+    // fatiga
+    private  TextView stateTextView;
+
+    //PERCLOS
+    double numfraTot = 0;
+    double numFramEyeClo = 0;
+    double medPer;
+
+
+    public Detection( TextView yawnCountTextView, TextView blinkCountTextView, TextView blinkTimeTextView,
+                      TextView timeTextView, TextView sensorTextView, TextView stateTextView) {
+
         this.yawnCountTextView = yawnCountTextView;
         this.blinkCountTextView = blinkCountTextView;
         this.blinkTimeTextView = blinkTimeTextView;
-        this.time1 = time1;
         this.timeTextView = timeTextView;
+        this.sensorTextView = sensorTextView;
+        this.stateTextView = stateTextView;
     }
-
 
     @Override
     public void onCameraViewStarted(int width, int height) {
         grayMat = new Mat(); // se inicializa la matriz para la escala de grises
+        timeApp.setTimIni(System.currentTimeMillis()/1000);
     }
 
     @Override
     public void onCameraViewStopped() {
         if (grayMat != null) {
-            grayMat.release(); // si se detiene la app, se libera recursos de la matriz
+            grayMat.release();
         }
+
     }
 
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
 
-        time2 = System.currentTimeMillis()/1000;
-        time3 = time2 - time1;
-        showTitle(timeTextView,"Tiempo: ",time3);
-////////////////////// UNO ////////////////////////////
-        Mat rgbaFrame = inputFrame.rgba();
+        numfraTot++;
+        double value = Double.parseDouble(sensorTextView.getText().toString());
 
-        // Definir el ángulo de rotación en grados (en sentido horario)
-        double angle = 90; // Rotación de 90 grados para sentido antihorario
-        // Obtener la altura y el ancho de la imagen original
-        int width = rgbaFrame.cols();
-        int height = rgbaFrame.rows();
-        // Calcular el centro de la imagen
-        Point center = new Point(width / 2, height / 2);
-        // Calcular la matriz de rotación
-        Mat rotationMatrix = Imgproc.getRotationMatrix2D(center, angle, 1);
+        TimeFunction();
+        Mat rotatedFrame = RotatedFrameFunction(inputFrame.rgba());
 
-        // Aplicar la matriz de rotación a la imagen
-        Mat rotatedFrame = new Mat();
-        Imgproc.warpAffine(rgbaFrame, rotatedFrame, rotationMatrix, rgbaFrame.size());
-        Core.flip(rotatedFrame, rotatedFrame, 1);
+        int variable;
+        variable = value<20?1:value>=30&&value<=100?2:80<value && value<=250?3:0;
 
-
-        //////////////////////  DOS ////////////////////////////
-        ////////////// PROCESAMIENTO DE IMAGEN /////////////////
-
-
-        int value = 400;
-        int variable = 0;
-        if(value < 4){
-            variable = 0;
-        }else if (4<=value && value<=10){
-            variable = 1;
-        }else if(10<value && value<=500){
-            variable = 2;
-        }else{
-            variable = 3;
-        }
-
-        grayMat = procesamiento(rotatedFrame,variable);
-
-/*
-        double brightnessFactor=0;
-        double contrastFactor=0;
-
-        if(variable<50){
-
-            brightnessFactor = 1.6;
-            Core.multiply(grayMat, new Scalar(brightnessFactor, brightnessFactor, brightnessFactor), grayMat);
-            //contrastFactor =0.5;
-            //grayMat.convertTo(grayMat, -1, contrastFactor, -(100*contrastFactor));
-
-        }else if(50<variable && variable<490){
-            Imgproc.equalizeHist(grayMat, grayMat);
-            brightnessFactor = 1;
-            contrastFactor =1;
-            Core.multiply(grayMat, new Scalar(brightnessFactor, brightnessFactor, brightnessFactor), grayMat);
-            grayMat.convertTo(grayMat, -1, contrastFactor*1.8, -(10*contrastFactor));
-        }else if(variable>500){
-            brightnessFactor = 0.5;
-            contrastFactor =1.2;
-            Core.multiply(grayMat, new Scalar(brightnessFactor, brightnessFactor, brightnessFactor), grayMat);
-            grayMat.convertTo(grayMat, -1, contrastFactor*1.5, -(30*contrastFactor));
-        }
-*/
-
+        grayMat = processsingImagenFunction(rotatedFrame,variable);
         //////////////////// TRES //////////////////////////////
+
         //Deteccion de rostro:
         MatOfRect faces = new MatOfRect();
         if (faceCascade != null) {
-            faceCascade.detectMultiScale(grayMat, faces, 1.3, 8, 2, new Size(300, 300));
+            faceCascade.detectMultiScale(grayMat, faces, 1.28, 6, 2, new Size(270, 270));
         }
 
         Rect[] facesArray = faces.toArray();
         for (Rect face : facesArray) {
             Imgproc.rectangle(rotatedFrame, face.tl(), face.br(), new Scalar(255, 0, 0, 255), 3);
+            Imgproc.rectangle(grayMat, face.tl(), face.br(), new Scalar(255, 0, 0, 255), 3);
 
             int faceX1 = face.x; /// x de la esquina superior izquierda
             int faceY1 = face.y; /// y de la esquina superior izquierda
@@ -180,141 +141,200 @@ public abstract class Detection implements CameraBridgeViewBase.CvCameraViewList
             Imgproc.rectangle(rotatedFrame, new Point(faceX1, mouthY1), new Point(faceX2, mouthY2), new Scalar(255, 100, 255, 0), 3);
 
             // Deteccion de ojos:
-            MatOfRect eyes = new MatOfRect();
+            MatOfRect eyeMatRec = new MatOfRect();
             if (eyeCascade != null) {
-                eyeCascade.detectMultiScale(eyeRegion, eyes, 1.1, 12, 2, new Size(30, 30), new Size(100, 100));
+                eyeCascade.detectMultiScale(eyeRegion, eyeMatRec, 1.1, 12, 2, new Size(30, 30), new Size(100, 100));
             }
-            Rect[] eyesArray = eyes.toArray();
+
+            Rect[] eyesArray = eyeMatRec.toArray();
             for (Rect eye : eyesArray) {
-
-
                 Point eyeTl = new Point(eye.tl().x + faceX1, eye.tl().y + eyesY1);
                 Point eyeBr = new Point(eye.br().x + faceX1, eye.br().y + eyesY1);
                 Imgproc.rectangle(rotatedFrame, eyeTl, eyeBr, new Scalar(0, 255, 0, 255), 3);
-
-                /*
-                //////////////////////// Dibujar elipse en lugar de Circulo /////////////////////////////////
-                Point eyeTl = new Point(eye.tl().x + faceX1, eye.tl().y + eyesY1);
-                Point eyeBr = new Point(eye.br().x + faceX1, eye.br().y + eyesY1);
-
-                double aspectRatio = 0.7; // Puedes ajustar este valor según tus necesidades
-                double semiMajorAxis = eye.width / 2;
-                double semiMinorAxis = semiMajorAxis * aspectRatio;
-                Point eyeCenter = new Point((eyeTl.x + eyeBr.x) / 2, (eyeTl.y + eyeBr.y) / 2);
-                Size axes = new Size((eyeBr.x - eyeTl.x) / 2, (eyeBr.y - eyeTl.y) / 2); // Semiejes horizontal y vertical de la elipse
-
-                Imgproc.ellipse(rotatedFrame, eyeCenter, new Size(semiMajorAxis, semiMinorAxis), 0, 0, 360, new Scalar(0, 255, 0, 255), 3);
-                */
+                Imgproc.rectangle(grayMat, eyeTl, eyeBr, new Scalar(0, 255, 0, 255), 3);
             }
 
             // deteccion bostezos:
-            MatOfRect mouth = new MatOfRect();
+            MatOfRect yawMatRec = new MatOfRect();
             if (yawnCascade != null) {
-                yawnCascade.detectMultiScale(mouthRegion, mouth, 1.2, 15, 2, new Size(100, 100));
+                yawnCascade.detectMultiScale(mouthRegion, yawMatRec, 1.2, 15, 2, new Size(100, 100));
             }
-            Rect[] mouthArray = mouth.toArray();
-            for (Rect yawn : mouthArray) {
-                Point yawnTl = new Point(yawn.tl().x + faceX1, yawn.tl().y + mouthY1);
-                Point yawnBr = new Point(yawn.br().x + faceX1, yawn.br().y + mouthY1);
+            Rect[] yawnArray = yawMatRec.toArray();
+            for (Rect yawRect : yawnArray) {
+                Point yawnTl = new Point(yawRect.tl().x + faceX1, yawRect.tl().y + mouthY1);
+                Point yawnBr = new Point(yawRect.br().x + faceX1, yawRect.br().y + mouthY1);
 
                 Imgproc.rectangle(rotatedFrame, yawnTl, yawnBr, new Scalar(0, 255, 0, 255), 3);
-                nYawnDetected++;
-                Log.d("nyawnConter","numero: "+nYawnDetected);
-
+                Imgproc.rectangle(grayMat, yawnTl, yawnBr, new Scalar(0, 255, 0, 255), 3);
             }
 
-            if(time3>5) {
-                // contador de parpadeos
-                blink(eyes);
-                // contador bostezos
-                yawn(mouth);
+            if(timApp >DELAY_TIME_TO_START && value > 15 && value <200) {
+                blinkDetectFunction(eyeMatRec); // contador de parpadeos
+                yawnDetectFunction(yawMatRec); // contador bostezos
             }
         }
-
-        return rotatedFrame;
+        return grayMat;
     }
 
     public abstract void showTitle (TextView textView, String text, long count);
 
-    //public abstract MatOfRect detectMultiScale();
+    public void TimeFunction(){
+        timeApp.setTimFin(System.currentTimeMillis()/1000);
+        timApp = timeApp.getTimAct();
+        if(timApp == DELAY_TIME_TO_START){
+            timeDet.setTimIni(System.currentTimeMillis()/1000);
+        }else if(timApp > 5){
+            if(timDetAct <30) {
+                timeDet.setTimFin(System.currentTimeMillis() / 1000);
+                timDetAct = timeDet.getTimAct();
+                showTitle(timeTextView, "Tiempo: ", timDetAct);
+            }else if(timDetAct == 30){
+                int varPer = PERCLOS();
+                fatigaDetectionFunction(varPer);
+                timDetAct =0;
+                timeDet.setTimIni(System.currentTimeMillis()/1000);
+            }
+        }
 
-    public void setFaceCascade(){
-        //this.faceCascade = faceCascade;
     }
 
-    private void blink(MatOfRect eyes) {
-        if (!eyes.empty()) {
+    private void blinkDetectFunction(MatOfRect eyeMatRec) {
+        if (!eyeMatRec.empty()) {
             eyesDetected = true;
-            blinkTime2 = System.currentTimeMillis();
+            blinkDuration.setTimFin(System.currentTimeMillis());
 
         } else {
-            if (blinkTime1 == 0) {
-                blinkTime1 = System.currentTimeMillis();
+            if (blinkDuration.getTimIni() == 0) {
+                blinkDuration.setTimIni(System.currentTimeMillis());
             }
             eyesDetected = false;
+            numFramEyeClo++;
         }
         if (eyesDetected && !previousEyesDetected && !yawnDetected) {
             blinkCount++;
-            if(blinkCount<1){
-                elapsedTimeSeconds =0;
-            }else{
-                elapsedTimeSeconds = (blinkTime2 - blinkTime1);
-            }
-
             showTitle(blinkCountTextView,"Parpadeos: ",blinkCount);
-            showTitle(blinkTimeTextView,"Tiempo ultimo parpadeo: ",elapsedTimeSeconds);
-            blinkTime1 = 0;
-            blinkTime2 = 0;
+            if(blinkCount>0){
+                showTitle(blinkTimeTextView,"Tiempo Parpadeo: ",blinkDuration.getTimAct());
+            }
+            blinkDuration.setTimIni(0);
+            blinkDuration.setTimFin(0);
         }
         previousEyesDetected = eyesDetected;
     }
-    private void yawn(MatOfRect mouth){
-        if (!mouth.empty()) {
-            yawnDetected = true;
 
-        } else {
-            yawnDetected = false;
-        }
-        if (yawnDetected && nYawnDetected>70) {
-            yawnCount++;
-            showTitle(yawnCountTextView, "Bostezos: ", yawnCount);
-            nYawnDetected=0;
+
+    private void yawnDetectFunction(MatOfRect yawMatRec){
+        if (!yawMatRec.empty()) {
+            yawnDetected = true;
+            if(yawDuration.getTimIni()==0) {
+                yawDuration.setTimIni(System.currentTimeMillis() / 1000);
+            }
+            numYawFra++;
+            showTitle(yawnCountTextView, "Bostezos: ", yawCount);
+        }else{
+            yawDuration.setTimFin(System.currentTimeMillis()/1000);
+            if(yawnDetected == true && yawDuration.getTimAct() > 5){
+                if(numYawFra>20){
+                    yawCount++;
+                    showTitle(yawnCountTextView, "Bostezos: ", yawCount);
+                }else{
+                    showTitle(yawnCountTextView, "Bostezos: ", yawCount);
+                }
+                yawDuration.setTimAct(0);
+                yawDuration.setTimIni(0);
+                yawDuration.setTimFin(0);
+                numYawFra=0;
+                yawnDetected = false;
+            }
         }
     }
 
-    private Mat procesamiento(Mat inputImage, int variable) {
+    private Mat processsingImagenFunction(Mat intImage, int variable) {
 
-        Mat outputImage = new Mat();
-        Imgproc.cvtColor(inputImage, outputImage, Imgproc.COLOR_RGBA2GRAY);
+        Mat outImg = new Mat();
+        Imgproc.cvtColor(intImage, outImg, Imgproc.COLOR_RGBA2GRAY);
 
         double brightnessFactor=0;
         double contrastFactor=0;
-
-        // Aplicar el filtro espacial según el tipo especificado
+        
         switch (variable) {
-            case 0:
-                outputImage = outputImage;
-                break;
+
             case 1:
-                brightnessFactor = 1.6;
-                Core.multiply(outputImage, new Scalar(brightnessFactor, brightnessFactor, brightnessFactor), outputImage);
+                brightnessFactor = 1.2;
+                Imgproc.equalizeHist(outImg,outImg);
+                Core.multiply(outImg, new Scalar(brightnessFactor, brightnessFactor, brightnessFactor), outImg);
+                Log.d("CASO 1", ""+variable);
                 break;
             case 2:
-                Imgproc.equalizeHist(outputImage,outputImage);
-                brightnessFactor = 1;
-                contrastFactor =1;
-                Core.multiply(outputImage, new Scalar(brightnessFactor, brightnessFactor, brightnessFactor), outputImage);
-                outputImage.convertTo(outputImage, -1, contrastFactor*1.8, -(10*contrastFactor));
+                Imgproc.equalizeHist(outImg,outImg);
+                //outImg = outImg;
+                Log.d("CASO 2", ""+variable);
                 break;
             case 3:
-                brightnessFactor = 0.5;
-                contrastFactor =1.2;
-                Core.multiply(outputImage, new Scalar(brightnessFactor, brightnessFactor, brightnessFactor), outputImage);
-                outputImage.convertTo(outputImage, -1, contrastFactor*1.5, -(30*contrastFactor)); // Puedes ajustar los parámetros según tus necesidades
+                brightnessFactor = 0.8;
+                //contrastFactor =1.4;
+                Core.multiply(outImg, new Scalar(brightnessFactor, brightnessFactor, brightnessFactor), outImg);
+                //outImg.convertTo(outImg, -1, contrastFactor*1.8, -(10*contrastFactor)); //
+                Imgproc.equalizeHist(outImg,outImg);
+                Log.d("CASO 3", ""+variable);
                 break;
         }
 
-        return outputImage;
+        return outImg;
+    }
+
+    private Mat RotatedFrameFunction(Mat inImg){
+
+        Mat outImg = new Mat();
+
+        double angle = 90; // Rotación de 90 grados
+        int width = inImg.cols();
+        int height = inImg.rows();
+        Point center = new Point(width / 2, height / 2);
+        Mat rotationMatrix = Imgproc.getRotationMatrix2D(center, angle, 1);
+        Imgproc.warpAffine(inImg, outImg, rotationMatrix, inImg.size());
+        Core.flip(outImg, outImg, 1);
+
+        return outImg;
+    }
+
+  public void fatigaDetectionFunction(int medPer){
+        double PMPM=15;
+        double PPM = blinkCount;
+        double BPM = yawCount;
+
+        if(0<PPM && PPM<=PMPM && BPM == 0){
+            showTitle(stateTextView,"Estado: Sin Fatiga ", 0);
+            Log.d("Estado", "NO FATIGA");
+            Log.d("Estado", ""+PMPM + PPM);
+        }else if(PPM>PMPM && BPM ==0){
+            Log.d("Estado", "POSIBLE FATIGA");
+            showTitle(stateTextView,"Estado: Posible Fatiga ", 1);
+            Log.d("Estado", ""+PMPM + PPM);
+        }else if(PPM>PMPM && BPM>0 && medPer== 0){
+            showTitle(stateTextView,"Estado: Fatiga ", 2);
+            Log.d("Estado", ""+PMPM + PPM+BPM);
+        } else if (PPM>PMPM && BPM>0 && medPer == 1) {
+            showTitle(stateTextView,"Estado: Fatiga Critico ", 2);
+            Log.d("Estado", ""+PMPM + PPM+BPM);
+        }
+  }
+
+    public int PERCLOS(){
+        medPer = (numFramEyeClo / numfraTot)*100;
+        Log.d("ESTADO: ", ""+medPer);
+        double Per = (30/numfraTot)*100 + ((30/numfraTot)*100)*0.2;
+
+        numfraTot=0;
+        numFramEyeClo=0;
+
+        if(medPer>Per){
+            return 1;
+        }else{
+            return 0;
+        }
     }
 
 }
+
+
