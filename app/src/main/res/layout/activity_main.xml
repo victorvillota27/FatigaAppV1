@@ -44,16 +44,42 @@
         android:textSize="18sp"
         android:textColor="#FFFFFF"
         android:layout_below="@+id/blinkTimeTextView" />
+
+    <Button
+        android:id="@+id/startButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/yawnCountTextView"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="450dp"
+        android:background="#46C21C"
+        android:enabled="true"
+        android:text="INICIAR"
+        android:textColor="#FFFFFF" />
+    <Button
+        android:id="@+id/stopButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="DETENER"
+        android:textColor="#FFFFFF"
+        android:layout_below="@+id/startButton"
+        android:layout_marginTop="10dp"
+        android:background="#46C21C"
+        android:layout_centerHorizontal="true"
+        android:enabled="true"/>
+
+
+
     <TextView
         android:id="@+id/timeTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Tiempo: "
         android:paddingTop="5dp"
-        android:textSize="18sp"
+        android:textSize="13sp"
         android:textColor="#FFFFFF"
         android:layout_below="@+id/stateTextView"
-        android:paddingLeft="280dp"
+        android:paddingLeft="300dp"
         />
 
     <TextView
@@ -62,10 +88,10 @@
         android:layout_height="wrap_content"
         android:layout_below="@+id/timeTextView"
         android:paddingTop="5dp"
-        android:paddingLeft="280dp"
+        android:paddingLeft="300dp"
         android:text="Lux:"
         android:textColor="#FFFFFF"
-        android:textSize="18sp"
+        android:textSize="13sp"
         />
 
     <TextView
@@ -73,8 +99,9 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:paddingTop="5dp"
+        android:paddingLeft="5dp"
         android:text="0"
-        android:textSize="18sp"
+        android:textSize="13sp"
         android:textColor="#FFFFFF"
         android:layout_below="@+id/timeTextView"
         android:layout_toRightOf="@+id/TextView"
@@ -90,7 +117,7 @@
         android:layout_height="wrap_content"
         android:paddingTop="10dp"
         android:text="ESTADO:"
-        android:background="#00FF00"
+        android:background="#46C21C"
         android:textColor="#000000"
         android:textSize="20sp"
         android:gravity="center"/>
